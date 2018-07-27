@@ -24,6 +24,12 @@ namespace Identificator
             "black", "brown", "yellow", "green", "red", "grey", "blue", "white", "purple", "pink", "silver"
         };
 
+        public async Task<IEnumerable<string> > CorrectName(string query)
+        {
+            return ((await new Lolibooru().GetTags(query)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); })
+                .Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }));
+        }
+
         public async Task<CharacInfo> GetAnime(string firstName, string lastName)
         {
             return (await GetAnime(lastName.ToLower() + "_" + firstName.ToLower()));
