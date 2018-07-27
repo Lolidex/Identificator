@@ -1,5 +1,4 @@
 ﻿using BooruSharp.Booru;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -22,48 +21,67 @@ namespace Identificator
         }
 
         public readonly string[] colors = new string[] {
-            "red", "yellow", "grey", "green", "blue", "orange", "white", "purple", "pink"
+            "black", "brown", "yellow", "green", "red", "grey", "blue", "white", "purple", "pink", "silver"
         };
 
         public async Task<CharacInfo> GetAnime(string firstName, string lastName)
         {
-            DateTime start = DateTime.Now;
-            string query = lastName.ToLower() + "_" + firstName.ToLower();
+            return (await GetAnime(lastName.ToLower() + "_" + firstName.ToLower()));
+        }
+
+        public async Task<CharacInfo> GetAnime(string query)
+        {
             Gelbooru booru = new Gelbooru();
-            int nbMax = await booru.GetNbImage(query, "1girl");
-            if (nbMax > 100)
-                nbMax = 100;
             Dictionary<string, int> tags = new Dictionary<string, int>();
-            for (int i = 1; i < nbMax; i++)
+            for (int i = 1; i <= 100; i++)
             {
-                foreach (string s in (await booru.GetImage(i, query, "1girl")).tags)
+                try
                 {
-                    if (tags.ContainsKey(s))
-                        tags[s]++;
-                    else
-                        tags.Add(s, 1);
+                    foreach (string s in (await booru.GetImage(i, query, "1girl")).tags)
+                    {
+                        if (tags.ContainsKey(s))
+                            tags[s]++;
+                        else
+                            tags.Add(s, 1);
+                    }
                 }
-            }
-            tags = tags.Where(x => (x.Value * 98 / nbMax) > 50).ToDictionary(x => x.Key, x => x.Value);
-            string source = null;
-            foreach (var item in tags)
-            {
-                if ((await booru.GetTag(item.Key)).type == BooruSharp.Search.Tag.TagType.Copyright)
+                catch (BooruSharp.Search.InvalidTags)
                 {
-                    source = item.Key;
                     break;
                 }
             }
+            string source = null;
+            int sourcePercent = 0;
+            foreach (var item in tags)
+            {
+                try
+                {
+                    if ((await booru.GetTag(item.Key)).type == BooruSharp.Search.Tag.TagType.Copyright && item.Value > sourcePercent)
+                    {
+                        source = item.Key;
+                        sourcePercent = item.Value;
+                    }
+                }
+                catch (BooruSharp.Search.InvalidTags)
+                { }
+            }
             string hair = null, eyes = null;
+            int hairPercent = 0, eyesPercent = 0;
             foreach (var item in tags)
             {
                 string[] parts = item.Key.Split('_');
                 if (parts.Length == 2)
                 {
-                    if (parts[1] == "hair" && colors.Contains(parts[0]))
+                    if (parts[1] == "hair" && colors.Contains(parts[0]) && item.Value > hairPercent)
+                    {
                         hair = parts[0];
-                    else if (parts[1] == "eyes" && colors.Contains(parts[0]))
+                        hairPercent = item.Value;
+                    }
+                    else if (parts[1] == "eyes" && colors.Contains(parts[0]) && item.Value > eyesPercent)
+                    {
                         eyes = parts[0];
+                        eyesPercent = item.Value;
+                    }
                 }
             }
             return (new CharacInfo(source, eyes, hair));
