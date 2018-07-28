@@ -21,15 +21,45 @@ namespace Identificator
         }
 
         public readonly string[] colors = new string[] {
-            "black", "brown", "yellow", "green", "red", "grey", "blue", "white", "purple", "pink", "silver"
+            "black", "brown", "yellow", "green", "red", "grey", "blue", "white", "purple", "pink", "silver", "blonde"
         };
 
-        public async Task<IEnumerable<string> > CorrectName(string query)
-        {
-            return ((await new Lolibooru().GetTags(query)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); })
-                .Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }));
-        }
+        public readonly char[] split = new char[] {
+            '(', ')', '_', ' ', ',', '.', '[', ']', '#', '{', '}', '|'
+        };
 
+        public async Task<string[]> CorrectName(string query)
+        {
+            BooruSharp.Search.Tag.SearchResult[] res = (await new Lolibooru().GetTags(query)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); }).ToArray();
+            if (res.Length > 0)
+                return (res.Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }).ToArray());
+            List<string> othersRes = new List<string>();
+            string[] splitQuery = query.Split(split);
+            foreach (string q in splitQuery)
+            {
+                othersRes.AddRange((await new Lolibooru().GetTags(q)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); }).Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }).ToList());
+            }
+            othersRes = othersRes.Distinct().ToList();
+            List<string> bestRes = new List<string>();
+            foreach (string s in othersRes)
+            {
+                bool isEverywhere = true;
+                foreach (string s2 in s.Split(split))
+                {
+                    if (!splitQuery.Contains(s2))
+                    {
+                        isEverywhere = false;
+                        break;
+                    }
+                }
+                if (isEverywhere)
+                    bestRes.Add(s);
+            }
+            if (bestRes.Count > 0)
+                return (bestRes.ToArray());
+            return (othersRes.ToArray());
+        }
+    
         public async Task<CharacInfo> GetAnime(string firstName, string lastName)
         {
             return (await GetAnime(lastName.ToLower() + "_" + firstName.ToLower()));
