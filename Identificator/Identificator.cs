@@ -1,4 +1,5 @@
 ﻿using BooruSharp.Booru;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,11 +31,18 @@ namespace Identificator
 
         public async Task<string[]> CorrectName(string query)
         {
+            try
+            {
+                await new Gelbooru().GetTag(query);
+                return (new string[] { query });
+            }
+            catch (BooruSharp.Search.InvalidTags)
+            { }
             BooruSharp.Search.Tag.SearchResult[] res = (await new Lolibooru().GetTags(query)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); }).ToArray();
             if (res.Length > 0)
                 return (res.Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }).ToArray());
             List<string> othersRes = new List<string>();
-            string[] splitQuery = query.Split(split);
+            string[] splitQuery = query.Split(split, int.MaxValue, StringSplitOptions.RemoveEmptyEntries);
             foreach (string q in splitQuery)
             {
                 othersRes.AddRange((await new Lolibooru().GetTags(q)).Where(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.type == BooruSharp.Search.Tag.TagType.Character); }).Select(delegate (BooruSharp.Search.Tag.SearchResult result) { return (result.name); }).ToList());
@@ -44,7 +52,7 @@ namespace Identificator
             foreach (string s in othersRes)
             {
                 bool isEverywhere = true;
-                foreach (string s2 in s.Split(split))
+                foreach (string s2 in s.Split(split, int.MaxValue, StringSplitOptions.RemoveEmptyEntries))
                 {
                     if (!splitQuery.Contains(s2))
                     {
